@@ -3,7 +3,7 @@ module RbZMQ
   class Context
     # @!visibility private
     #
-    # Internal {ZMQ::Context} reference.
+    # Internal `ZMQ::Context` reference.
     #
     attr_reader :zmq_ctx
 
@@ -13,7 +13,7 @@ module RbZMQ
       @zmq_ctx = opts.delete(:context) { self.class.global }
     end
 
-    # Return {FFI::Pointer} from {ZMQ::Context}.
+    # Return `FFI::Pointer` from `ZMQ::Context`.
     #
     # @return [FFI::Pointer] return
     def pointer

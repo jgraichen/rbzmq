@@ -4,32 +4,32 @@ module RbZMQ
 
     # @!visibility private
     #
-    # Internal {ZMQ::Context} reference.
+    # Internal ZMQ::Context reference.
     #
     attr_reader :zmq_ctx
 
     # @!visibility private
     #
-    # Internal {ZMQ::Socket} reference.
+    # Internal ZMQ::Socket reference.
     #
     attr_reader :zmq_socket
 
     # Allocates a socket of given type for sending and receiving data.
     #
-    # @params type [Integer] ZMQ socket type, on if ZMQ::REQ, ZMQ::REP,
-    #   ZMQ::PUB, ZMQ::SUB, ZMQ::PAIR, ZMQ::PULL, ZMQ::PUSH, ZMQ::XREQ,
-    #   ZMQ::REP, ZMQ::DEALER or ZMQ::ROUTER.
+    # @param type [Integer] ZMQ socket type, on if ZMQ::REQ, ZMQ::REP,
+    #   ZMQ::PUB, ZMQ::SUB, ZMQ::PAIR, ZMQ::PULL, ZMQ::PUSH,
+    #   ZMQ::XREQ, ZMQ::REP, ZMQ::DEALER or ZMQ::ROUTER.
     #
-    # @params opts [Hash] Option hash. {:ctx} will be removed, all other
-    #   options will be passed to {ZMQ::Socket.new}
+    # @param opts [Hash] Option hash. :ctx will be removed, all other
+    #   options will be passed to ZMQ::Socket.new.
     #
-    # @option opts [Class] :receiver_class By default {ZMQ::ManagedMessage}
+    # @option opts [Class] :receiver_class By default ZMQ::ManagedMessage
     #   is used for automatic memory management. For manual memory management
-    #   override with {ZMQ::Message}.
+    #   override with ZMQ::Message.
     #
     # @option opts [Context] :ctx ZMQ context used to initialize socket.
     #   By default {Context.global} is used. Must be {RbZMQ::Context},
-    #   {ZMQ::Context} or an {FFI::Pointer}.
+    #   ZMQ::Context or an FFI::Pointer.
     #
     # @raise [ZMQError] On error.
     #
@@ -60,9 +60,11 @@ module RbZMQ
     #   socket = RbZMQ::Socket.new ZMQ::PUB
     #   socket.bind "tcp://127.0.0.1:5555"
     #
-    # @params address [String] Address to bind. Must be a supported protocol.
+    # @param address [String] Address to bind. Must be a supported protocol.
     #
     # @raise [ZMQError] On error.
+    #
+    # @return [Boolean] True.
     #
     def bind(address)
       ZMQError.error! zmq_socket.bind address
@@ -81,6 +83,8 @@ module RbZMQ
     #
     # @raise [ZMQError] On error.
     #
+    # @return [Boolean] True.
+    #
     def connect(address)
       ZMQError.error! zmq_socket.connect address
     end
@@ -93,7 +97,7 @@ module RbZMQ
     #   socket.close
     #
     # @return [Boolean] Return true upon success *or* when the socket has
-    #   already been closed, false otherwise. Use {close!} to raise an error
+    #   already been closed, false otherwise. Use {#close!} to raise an error
     #   on failure.
     #
     def close
@@ -107,10 +111,164 @@ module RbZMQ
     #   socket = RbZMQ::Socket.new ZMQ::PULL
     #   socket.close!
     #
-    # @raise [ZMQError] Error raised on error.
+    # @raise [ZMQError] Error raised on failure.
+    #
+    # @return [Boolean] True.
     #
     def close!
       ZMQError.error! zmq_socket.close
+    end
+
+    # Queues the message for transmission.
+    #
+    # @example
+    #   unless socket.sendmsg message
+    #     puts 'Send failed.'
+    #   end
+    #
+    # @param message [ZMQ::Message] Message to send. Message is
+    #   assumed to conform to the same public API as ZMQ::Message.
+    #
+    # @param flags [Integer] May contains of the following flags:
+    #   * 0 (default) - blocking operation
+    #   * ZMQ::DONTWAIT - non-blocking operation
+    #   * ZMQ::SNDMORE - this message is part of a multi-part message
+    #
+    # @return [Boolean] True when the message was successfully enqueued.
+    #   Returns false under two conditions:
+    #   1. The message could not be enqueued
+    #   2. When flags is set with ZMQ::DONTWAIT and the socket
+    #      returned EAGAIN.
+    #   Use {#sendmsg!} to raise an error on failure.
+    #
+    def sendmsg(message, flags = 0)
+      ZMQError.ok? zmq_socket.sendmsg message, flags
+    end
+
+
+    # Queues the message for transmission.
+    #
+    # @example
+    #   begin
+    #     socket.sendmsg message
+    #   rescue RbZMQ::ZMQError => err
+    #     puts 'Send failed.'
+    #   end
+    #
+    # @param message [ZMQ::Message] Message to send. Message is
+    #   assumed to conform to the same public API as ZMQ::Message.
+    #
+    # @param flags [Integer] May contains of the following flags:
+    #   * 0 (default) - blocking operation
+    #   * ZMQ::DONTWAIT - non-blocking operation
+    #   * ZMQ::SNDMORE - this message is part of a multi-part message
+    #
+    # @raise [ZMQError] Raises an error under two conditions:
+    #   1. The message could not be enqueued
+    #   2. When flags is set with ZMQ::DONTWAIT and the socket
+    #      returned EAGAIN.
+    #
+    # @return [Boolean] True.
+    #
+    def sendmsg!(message, flags = 0)
+      ZMQError.error! zmq_socket.sendmsg message, flags
+    end
+
+    # Helper method to make a new Message instance out of the string passed
+    # in for transmission.
+    #
+    # @example
+    #   socket.send_string "Hello World!"
+    #
+    # @param string [String] String to send. Will be used to create
+    #   a ZMQ::Message.
+    #
+    # @param flags [Integer] See {#sendmsg} for flags.
+    #
+    # @return [Boolean] See {#sendmsg} for return value.
+    #
+    def send_string(string, flags = 0)
+      ZMQError.ok? zmq_socket.send_string string, flags
+    end
+
+    # Helper method to make a new Message instance out of the string passed
+    # in for transmission.
+    #
+    # @example
+    #   socket.send_string! "Hello World!"
+    #
+    # @param string [String] String to send. Will be used to create
+    #   a ZMQ::Message.
+    #
+    # @param flags [Integer] See {#sendmsg!} for flags.
+    #
+    # @raise [ZMQError] See {#sendmsg!} for raised error.
+    #
+    # @return [Boolean] True.
+    #
+    def send_string!(string, flags = 0)
+      ZMQError.error! zmq_socket.send_string string, flags
+    end
+
+    # Send a sequence of strings as a multipart message out of the parts
+    # passed in for transmission.
+    #
+    # Given string arguments or arrays will be flattened.
+    #
+    # @overload send_strings(str1, str2, ..., flags = 0)
+    #
+    #   @example
+    #     socket.send_strings "Hello", "World!"
+    #
+    #   @param str1 ... [String] Strings to send as multipart message.
+    #
+    #   @param flags [Integer] May be ZMQ::DONTWAIT.
+    #
+    # @overload send_strings(strings, flags = 0)
+    #
+    #   @example
+    #     socket.send_strings ["Hello", "World!"]
+    #
+    #   @param strings [Array<String>] Strings to send as multipart message.
+    #
+    #   @param flags [Integer] May be ZMQ::DONTWAIT.
+    #
+    # @return [Boolean] True when the messages were successfully enqueued.
+    #   Returns false under two conditions.
+    #   1. A message could not be enqueued
+    #   2. When ZMQ::DONTWAIT was given and the socket returned EAGAIN.
+    #
+    def send_strings(*args)
+      flags = (Integer === args.last) ? args.pop : 0
+      ZMQError.ok? zmq_socket.send_strings args.flatten, flags
+    end
+
+    # Send a sequence of strings as a multipart message out of the parts
+    # passed in for transmission.
+    #
+    # @overload send_strings(str1, str2, ..., flags = 0)
+    #
+    #   @example
+    #     socket.send_strings "Hello", "World!"
+    #
+    #   @param str1, str2, ... [String] Strings to send as multipart message.
+    #
+    # @overload send_strings(strings, flags = 0)
+    #
+    #   @example
+    #     socket.send_strings ["Hello", "World!"]
+    #
+    #   @param strings [Array<String>] Strings to send as multipart message.
+    #
+    # @param flags [Integer] May be ZMQ::DONTWAIT.
+    # @raise [ZMQError] Raise an error under two conditions.
+    #   1. A message could not be enqueued
+    #   2. When ZMQ::DONTWAIT was given and the socket returned EAGAIN.
+    #
+    # @return [Boolean] True.
+    #
+    def send_strings!(parts, flags = 0)
+      ZMQError.error! zmq_socket.send_strings parts, flags
     end
   end
 end
