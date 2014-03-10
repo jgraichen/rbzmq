@@ -116,9 +116,10 @@ describe RbZMQ::Socket do
     end
   end
 
-  describe '#sendmsg' do
-    let(:msg) { double 'msg' }
-    subject { socket.sendmsg msg, 42 }
+  describe '#send_msg' do
+    let(:msg)  { double 'msg' }
+    let(:args) { [msg, 42] }
+    subject { socket.send_msg *args }
 
     it 'should successfully call #sendmsg on ZMQ socket' do
       expect(socket.zmq_socket).to receive(:sendmsg)
@@ -129,6 +130,86 @@ describe RbZMQ::Socket do
     it 'should raise error on failure' do
       expect(socket.zmq_socket).to receive(:sendmsg).and_return(-1)
       expect { subject }.to raise_error RbZMQ::ZMQError
+    end
+
+    context 'with :block option' do
+      let(:args) { [msg, {:block => false}]}
+
+      it 'should set ZMQ::DONTWAIT flag' do
+        expect(socket.zmq_socket).to receive(:sendmsg)
+                                     .with(msg, ZMQ::DONTWAIT).and_return(0)
+        expect(subject).to eq true
+      end
+    end
+
+    context 'with :more option' do
+      let(:args) { [msg, {:more => true}]}
+
+      it 'should set ZMQ::SNDMORE flag' do
+        expect(socket.zmq_socket).to receive(:sendmsg)
+                                     .with(msg, ZMQ::SNDMORE).and_return(0)
+        expect(subject).to eq true
+      end
+    end
+
+    context 'with :close option' do
+      let(:args) { [msg, {:close => true}]}
+
+      it 'should close message after send' do
+        expect(socket.zmq_socket).to receive(:sendmsg)
+                                     .with(msg, 0).and_return(0)
+        expect(msg).to receive(:close)
+        expect(subject).to eq true
+      end
+
+      context 'on error' do
+        before do
+          expect(socket.zmq_socket).to receive(:sendmsg).with(msg, 0).and_return(0)
+        end
+
+        it 'should close message after send' do
+          expect(msg).to receive(:close)
+          expect(subject).to eq true
+        end
+      end
+    end
+  end
+
+  describe '#send_msgs' do
+    let(:msg1) { double('msg1') }
+    let(:msg2) { double('msg2') }
+    let(:args) { [[msg1, msg2]] }
+    subject { socket.send_msgs *args }
+
+    it 'should successfully call #sendmsg on ZMQ socket' do
+      expect(socket.zmq_socket).to receive(:sendmsg).with(msg1, ZMQ::SNDMORE).ordered.and_return(0)
+      expect(socket.zmq_socket).to receive(:sendmsg).with(msg2, 0).ordered.and_return(0)
+      expect(subject).to eq true
+    end
+
+    it 'should raise error on failure' do
+      expect(socket.zmq_socket).to receive(:sendmsg).with(msg1, ZMQ::SNDMORE).ordered.and_return(-1)
+      expect { subject }.to raise_error RbZMQ::ZMQError
+    end
+
+    context 'with :block option' do
+      let(:args) { super() + [{:block => false}] }
+
+      it 'should successfully call #sendmsg on ZMQ socket' do
+        expect(socket.zmq_socket).to receive(:sendmsg).with(msg1, ZMQ::SNDMORE | ZMQ::DONTWAIT).ordered.and_return(0)
+        expect(socket.zmq_socket).to receive(:sendmsg).with(msg2, ZMQ::DONTWAIT).ordered.and_return(0)
+        expect(subject).to eq true
+      end
+    end
+
+    context 'with :more option' do
+      let(:args) { super() + [{:more => true}] }
+
+      it 'should successfully call #sendmsg on ZMQ socket' do
+        expect(socket.zmq_socket).to receive(:sendmsg).with(msg1, ZMQ::SNDMORE).ordered.and_return(0)
+        expect(socket.zmq_socket).to receive(:sendmsg).with(msg2, ZMQ::SNDMORE).ordered.and_return(0)
+        expect(subject).to eq true
+      end
     end
   end
 
@@ -168,33 +249,6 @@ describe RbZMQ::Socket do
 
     it 'should raise error on failure' do
       expect(socket.zmq_socket).to receive(:send_strings).and_return(-1)
-      expect { subject }.to raise_error RbZMQ::ZMQError
-    end
-  end
-
-  describe '#sendmsgs' do
-    let(:msg1) { double('msg1') }
-    let(:msg2) { double('msg2') }
-    subject { socket.sendmsgs [msg1, msg2], 42 }
-
-    context 'with multiple arguments' do
-      subject { socket.sendmsgs msg1, msg2, 42 }
-
-      it 'should successfully call #sendmsgs on ZMQ socket' do
-        expect(socket.zmq_socket).to receive(:sendmsgs)
-                                     .with([msg1, msg2], 42).and_return(0)
-        expect(subject).to eq true
-      end
-    end
-
-    it 'should successfully call #sendmsgs on ZMQ socket' do
-      expect(socket.zmq_socket).to receive(:sendmsgs)
-                                   .with([msg1, msg2], 42).and_return(0)
-      expect(subject).to eq true
-    end
-
-    it 'should raise error on failure' do
-      expect(socket.zmq_socket).to receive(:sendmsgs).and_return(-1)
       expect { subject }.to raise_error RbZMQ::ZMQError
     end
   end
