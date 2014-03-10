@@ -257,4 +257,18 @@ describe RbZMQ::Socket do
       expect { subject }.to raise_error RbZMQ::ZMQError
     end
   end
+
+  describe '#recv_string' do
+    subject { socket.recv_string }
+
+    it 'should call #recvmsg on ZMQ socket' do
+      expect(socket.zmq_socket).to receive(:recvmsg){|msg, flags| msg.copy_in_string 'msg string'}.and_return(0)
+      expect(subject).to eq 'msg string'
+    end
+
+    it 'should raise error on failure' do
+      expect(socket.zmq_socket).to receive(:recvmsg).and_return(-1)
+      expect { subject }.to raise_error RbZMQ::ZMQError
+    end
+  end
 end

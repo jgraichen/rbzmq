@@ -291,6 +291,29 @@ module RbZMQ
       message
     end
 
+    # Helper method to make a new #Message instance and convert its payload
+    # to a string.
+    #
+    # @example
+    #   str = socket.recv_string
+    #
+    # @param flags [Integer] May be ZMQ::DONTWAIT.
+    #
+    # @param opts [Hash] Options.
+    #
+    # @raise [ZMQError] Raises error under two conditions:
+    #   1. The message could not be dequeued
+    #   2. When non-blocking and the socket returned EAGAIN.
+    #
+    # @return [String] Received string.
+    #
+    def recv_string(flags = 0, opts = {})
+      opts, flags = flags, 0 if Hash === flags
+
+      ZMQError.error! zmq_socket.recv_string str = '', convert_flags(opts, flags, [:block])
+      str
+    end
+
     private
     # Convert option hash to ZMQ flag list
     # * :block (! DONTWAIT) defaults to true
