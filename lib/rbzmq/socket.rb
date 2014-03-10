@@ -122,33 +122,6 @@ module RbZMQ
     # Queues the message for transmission.
     #
     # @example
-    #   unless socket.sendmsg message
-    #     puts 'Send failed.'
-    #   end
-    #
-    # @param message [ZMQ::Message] Message to send. Message is
-    #   assumed to conform to the same public API as ZMQ::Message.
-    #
-    # @param flags [Integer] May contains of the following flags:
-    #   * 0 (default) - blocking operation
-    #   * ZMQ::DONTWAIT - non-blocking operation
-    #   * ZMQ::SNDMORE - this message is part of a multi-part message
-    #
-    # @return [Boolean] True when the message was successfully enqueued.
-    #   Returns false under two conditions:
-    #   1. The message could not be enqueued
-    #   2. When flags is set with ZMQ::DONTWAIT and the socket
-    #      returned EAGAIN.
-    #   Use {#sendmsg!} to raise an error on failure.
-    #
-    def sendmsg(message, flags = 0)
-      ZMQError.ok? zmq_socket.sendmsg message, flags
-    end
-
-
-    # Queues the message for transmission.
-    #
-    # @example
     #   begin
     #     socket.sendmsg message
     #   rescue RbZMQ::ZMQError => err
@@ -170,7 +143,7 @@ module RbZMQ
     #
     # @return [Boolean] True.
     #
-    def sendmsg!(message, flags = 0)
+    def sendmsg(message, flags = 0)
       ZMQError.error! zmq_socket.sendmsg message, flags
     end
 
@@ -185,62 +158,12 @@ module RbZMQ
     #
     # @param flags [Integer] See {#sendmsg} for flags.
     #
-    # @return [Boolean] See {#sendmsg} for return value.
-    #
-    def send_string(string, flags = 0)
-      ZMQError.ok? zmq_socket.send_string string, flags
-    end
-
-    # Helper method to make a new Message instance out of the string passed
-    # in for transmission.
-    #
-    # @example
-    #   socket.send_string! "Hello World!"
-    #
-    # @param string [String] String to send. Will be used to create
-    #   a ZMQ::Message.
-    #
-    # @param flags [Integer] See {#sendmsg!} for flags.
-    #
-    # @raise [ZMQError] See {#sendmsg!} for raised error.
+    # @raise [ZMQError] See {#sendmsg} for raised error.
     #
     # @return [Boolean] True.
     #
-    def send_string!(string, flags = 0)
+    def send_string(string, flags = 0)
       ZMQError.error! zmq_socket.send_string string, flags
-    end
-
-    # Send a sequence of strings as a multipart message out of the parts
-    # passed in for transmission.
-    #
-    # Given string arguments or arrays will be flattened.
-    #
-    # @overload send_strings(str1, str2, ..., flags = 0)
-    #
-    #   @example
-    #     socket.send_strings "Hello", "World!"
-    #
-    #   @param str1 ... [String] Strings to send as multipart message.
-    #
-    #   @param flags [Integer] May be ZMQ::DONTWAIT.
-    #
-    # @overload send_strings(strings, flags = 0)
-    #
-    #   @example
-    #     socket.send_strings ["Hello", "World!"]
-    #
-    #   @param strings [Array<String>] Strings to send as multipart message.
-    #
-    #   @param flags [Integer] May be ZMQ::DONTWAIT.
-    #
-    # @return [Boolean] True when the messages were successfully enqueued.
-    #   Returns false under two conditions.
-    #   1. A message could not be enqueued
-    #   2. When ZMQ::DONTWAIT was given and the socket returned EAGAIN.
-    #
-    def send_strings(*args)
-      flags = (Integer === args.last) ? args.pop : 0
-      ZMQError.ok? zmq_socket.send_strings args.flatten, flags
     end
 
     # Send a sequence of strings as a multipart message out of the parts
@@ -267,8 +190,40 @@ module RbZMQ
     #
     # @return [Boolean] True.
     #
-    def send_strings!(parts, flags = 0)
-      ZMQError.error! zmq_socket.send_strings parts, flags
+    def send_strings(*args)
+      args  = args.flatten
+      flags = (Integer === args.last) ? args.pop : 0
+      ZMQError.error! zmq_socket.send_strings args, flags
+    end
+
+    # Send a sequence of messages as a multipart message for transmission.
+    #
+    # Given arguments and arrays will be flattened.
+    #
+    # @overload sendmsgs(messages, flags = 0)
+    #
+    #   @param messages [Array<ZMQ::Message>] Messages to send as multipart
+    #     message. All elements are expected to either be or be a subclass of
+    #     ZMQ::Message.
+    #
+    # @overload sendmsgs(msg1, msg2, ... flags = 0)
+    #
+    #   @param msg1 ... [ZMQ::Message] Messages to send as multipart
+    #     message. All elements are expected to either be or be a subclass of
+    #     ZMQ::Message.
+    #
+    # @param flags [Integer] May be ZMQ::DONTWAIT.
+    #
+    # @raise [ZMQError] Raise an error under two conditions.
+    #   1. A message could not be enqueued
+    #   2. When ZMQ::DONTWAIT was given and the socket returned EAGAIN.
+    #
+    # @return [Boolean] True.
+    #
+    def sendmsgs(*args)
+      args  = args.flatten
+      flags = (Integer === args.last) ? args.pop : 0
+      ZMQError.error! zmq_socket.sendmsgs args, flags
     end
   end
 end
