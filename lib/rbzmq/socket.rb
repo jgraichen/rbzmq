@@ -45,7 +45,7 @@ module RbZMQ
         raise ArgumentError.new <<-ERR.strip_heredoc.gsub("\n", '')
             Context must be ZMQ::Context or RbZMQ::Context (respond to
             #pointer) or must be a FFI::Pointer, but #{ctx.class.name} given.
-          ERR
+        ERR
       end
 
       @zmq_ctx    = ctx
@@ -205,7 +205,7 @@ module RbZMQ
       opts, flags = flags, 0 if Hash === flags
       flags       = convert_flags opts, flags
 
-      messages[0..-2].each{|m| send_msg m, flags | ZMQ::SNDMORE }
+      messages[0..-2].each { |m| send_msg m, flags | ZMQ::SNDMORE }
       send_msg messages.last, flags
 
       true
@@ -222,44 +222,38 @@ module RbZMQ
     # @param string [String] String to send. Will be used to create
     #   a ZMQ::Message.
     #
-    # @param flags [Integer] See {#sendmsg} for flags.
+    # @param flags [Integer] See {#send_msg} for allowed flags.
     #
-    # @raise [ZMQError] See {#sendmsg} for raised error.
+    # @param opts [Hash] Options. See {#send_msg} for allowed options.
+    #
+    # @raise [ZMQError] See {#send_msg} for raised error.
     #
     # @return [Boolean] True.
     #
-    def send_string(string, flags = 0)
-      ZMQError.error! zmq_socket.send_string string, flags
+    def send_string(string, flags = 0, opts = {})
+      send_msg ZMQ::Message.new(string), flags, opts.merge(:close => true)
     end
 
     # Send a sequence of strings as a multipart message out of the parts
     # passed in for transmission.
     #
-    # @overload send_strings(str1, str2, ..., flags = 0)
+    # @example
+    #   socket.send_strings ["Hello", "World!"]
     #
-    #   @example
-    #     socket.send_strings "Hello", "World!"
+    # @param strings [Array<String>] Strings to send as multipart message.
     #
-    #   @param str1, str2, ... [String] Strings to send as multipart message.
+    # @param flags [Integer] See {#send_msgs} for allowed flags.
     #
-    # @overload send_strings(strings, flags = 0)
+    # @param opts [Hash] Options. See {#send_msgs} for allowed options.
     #
-    #   @example
-    #     socket.send_strings ["Hello", "World!"]
-    #
-    #   @param strings [Array<String>] Strings to send as multipart message.
-    #
-    # @param flags [Integer] May be ZMQ::DONTWAIT.
-    # @raise [ZMQError] Raise an error under two conditions.
-    #   1. A message could not be enqueued
-    #   2. When ZMQ::DONTWAIT was given and the socket returned EAGAIN.
+    # @raise [ZMQError] See {#send_msgs} for raised errors.
     #
     # @return [Boolean] True.
     #
-    def send_strings(*args)
-      args  = args.flatten
-      flags = (Integer === args.last) ? args.pop : 0
-      ZMQError.error! zmq_socket.send_strings args, flags
+    def send_strings(strings, flags = 0, opts = {})
+      send_msgs strings.map { |str| ZMQ::Message.new str },
+                flags,
+                opts.merge(:close => true)
     end
 
     private
@@ -268,7 +262,7 @@ module RbZMQ
     # * :more (SNDMORE) defaults to false
     def convert_flags(opts, flags = 0, allowed = [:block, :more])
       flags = flags | ZMQ::DONTWAIT if !opts.fetch(:block, true) && allowed.include?(:block)
-      flags = flags | ZMQ::SNDMORE  if opts.fetch(:more, false) && allowed.include?(:more)
+      flags = flags | ZMQ::SNDMORE if opts.fetch(:more, false) && allowed.include?(:more)
       flags
     end
   end
