@@ -14,6 +14,12 @@ module RbZMQ
     #
     attr_reader :zmq_socket
 
+    # @!visibilty private
+    #
+    # Message class.
+    #
+    attr_reader :message_class
+
     # Allocates a socket of given type for sending and receiving data.
     #
     # @param type [Integer] ZMQ socket type, on if ZMQ::REQ, ZMQ::REP,
@@ -48,8 +54,9 @@ module RbZMQ
         ERR
       end
 
-      @zmq_ctx    = ctx
-      @zmq_socket = ZMQ::Socket.new ctx, type
+      @zmq_ctx       = ctx
+      @zmq_socket    = ZMQ::Socket.new ctx, type
+      @message_class = opts[:receiver_class]
     rescue ZMQ::ZeroMQError => err
       raise ZMQError.new err
     end
@@ -256,6 +263,34 @@ module RbZMQ
                 opts.merge(:close => true)
     end
 
+    # Dequeues a message from the underlying queue. By default, this is a
+    # blocking operation.
+    #
+    # @example
+    #   message = socket.recv_msg
+    #
+    # @param flags [Integer] Can be ZMQ::DONTWAIT.
+    #
+    # @params opts [Hash] Options.
+    #
+    # @option opts [Boolean] :block If false operation will be non-blocking.
+    #   Defaults to true.
+    #
+    # @raise [ZMQError] Raise error under two conditions.
+    #   1. The message could not be dequeued
+    #   2. When mode is non-blocking and the socket returned EAGAIN.
+    #
+    # @return [ZMQ::Message] Return an object of
+    #
+    def recv_msg(flags = 0, opts = {})
+      opts, flags = flags, 0 if Hash === flags
+
+      message = create_message
+      ZMQError.error! zmq_socket.recvmsg message, convert_flags(opts, flags, [:block])
+
+      message
+    end
+
     private
     # Convert option hash to ZMQ flag list
     # * :block (! DONTWAIT) defaults to true
@@ -264,6 +299,11 @@ module RbZMQ
       flags = flags | ZMQ::DONTWAIT if !opts.fetch(:block, true) && allowed.include?(:block)
       flags = flags | ZMQ::SNDMORE if opts.fetch(:more, false) && allowed.include?(:more)
       flags
+    end
+
+    # Create new empty message
+    def create_message
+      message_class.new
     end
   end
 end
