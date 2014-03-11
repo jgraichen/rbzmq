@@ -276,19 +276,27 @@ module RbZMQ
     # @option opts [Boolean] :block If false operation will be non-blocking.
     #   Defaults to true.
     #
+    # @option opts [Integer] :timeout Raise a EAGAIN error if nothing was
+    #   received within given amount of milliseconds. Defaults to 1000.
+    #   The values :blocking, :infinity or -1 will wait forever.
+    #
     # @raise [ZMQError] Raise error under two conditions.
     #   1. The message could not be dequeued
     #   2. When mode is non-blocking and the socket returned EAGAIN.
+    #
+    # @raise [Errno::EAGAIN] When timeout was reached without receiving
+    #   a message.
     #
     # @return [ZMQ::Message] Return an object of
     #
     def recv_msg(flags = 0, opts = {})
       opts, flags = flags, 0 if Hash === flags
 
-      message = create_message
-      ZMQError.error! zmq_socket.recvmsg message, convert_flags(opts, flags, [:block])
-
-      message
+      with_recv_timeout(opts) do
+        ZMQError.error! zmq_socket.recvmsg (message = create_message),
+                                           convert_flags(opts, flags, [:block])
+        message
+      end
     end
 
     # Helper method to make a new #Message instance and convert its payload
@@ -310,8 +318,11 @@ module RbZMQ
     def recv_string(flags = 0, opts = {})
       opts, flags = flags, 0 if Hash === flags
 
-      ZMQError.error! zmq_socket.recv_string str = '', convert_flags(opts, flags, [:block])
-      str
+      with_recv_timeout(opts) do
+        ZMQError.error! zmq_socket.recv_string (str = ''),
+                                               convert_flags(opts, flags, [:block])
+        str
+      end
     end
 
     private
@@ -320,13 +331,41 @@ module RbZMQ
     # * :more (SNDMORE) defaults to false
     def convert_flags(opts, flags = 0, allowed = [:block, :more])
       flags = flags | ZMQ::DONTWAIT if !opts.fetch(:block, true) && allowed.include?(:block)
-      flags = flags | ZMQ::SNDMORE if opts.fetch(:more, false) && allowed.include?(:more)
+      flags = flags | ZMQ::SNDMORE  if opts.fetch(:more, false)  && allowed.include?(:more)
       flags
     end
 
     # Create new empty message
     def create_message
       message_class.new
+    end
+
+    def poll
+      @poll ||= ZMQ::Poller.new.tap do |poll|
+        poll.register @zmq_socket
+      end
+    end
+
+    # RECV timeout using ZMQ::POLLER
+    def with_recv_timeout(opts)
+      timeout = parse_timeout opts[:timeout]
+
+      if poll.poll(timeout) > 0
+        yield
+      else
+        raise Errno::EAGAIN.new "ZMQ socket did not receive anything within #{timeout}ms."
+      end
+    end
+
+    def parse_timeout(timeout)
+      case timeout
+        when :blocking, :infinity
+          -1
+        when nil
+          1000
+        else
+          Integer(timeout)
+      end
     end
   end
 end
