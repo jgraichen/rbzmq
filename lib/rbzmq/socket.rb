@@ -1,9 +1,11 @@
 module RbZMQ
-
+  #
+  # = RbZMQ::Socket
   #
   class Socket
-
+    #
     # Default timeout.
+    #
     DEFAULT_TIMEOUT = 5_000
 
     # @!visibility private
@@ -46,16 +48,15 @@ module RbZMQ
     # @return [Socket] Created socket object.
     #
     def initialize(type, opts = {})
-      opts = opts.reverse_merge receiver_class: ZMQ::ManagedMessage
+      opts = {receiver_class: ZMQ::ManagedMessage}.merge opts
 
       ctx = opts.fetch(:ctx) { RbZMQ::Context.global }
       ctx = ctx.pointer if ctx.respond_to? :pointer
 
       unless ctx.is_a?(FFI::Pointer)
-        raise ArgumentError.new <<-ERR.strip_heredoc.gsub("\n", '')
-            Context must be ZMQ::Context or RbZMQ::Context (respond to
-            #pointer) or must be a FFI::Pointer, but #{ctx.inspect} given.
-        ERR
+        raise ArgumentError.new "Context must be ZMQ::Context or " \
+          "RbZMQ::Context (respond to #pointer) or must be a FFI::Pointer, "\
+          "but #{ctx.inspect} given."
       end
 
       @zmq_ctx       = ctx
