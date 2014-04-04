@@ -17,7 +17,7 @@ RSpec.configure do |config|
 
   config.around do |example|
     begin
-      Timeout.timeout(10) do
+      Timeout.timeout(30) do
         example.call
       end
     rescue

@@ -29,7 +29,7 @@ module RbZMQ
         if error?(rc)
           raise new(rc)
         else
-          true
+          rc
         end
       end
 

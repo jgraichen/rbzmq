@@ -1,6 +1,10 @@
 module RbZMQ
 
+  #
   class Socket
+
+    # Default timeout.
+    DEFAULT_TIMEOUT = 5_000
 
     # @!visibility private
     #
@@ -14,7 +18,7 @@ module RbZMQ
     #
     attr_reader :zmq_socket
 
-    # @!visibilty private
+    # @!visibility private
     #
     # Message class.
     #
@@ -47,10 +51,10 @@ module RbZMQ
       ctx = opts.fetch(:ctx) { RbZMQ::Context.global }
       ctx = ctx.pointer if ctx.respond_to? :pointer
 
-      unless FFI::Pointer === ctx
+      unless ctx.is_a?(FFI::Pointer)
         raise ArgumentError.new <<-ERR.strip_heredoc.gsub("\n", '')
             Context must be ZMQ::Context or RbZMQ::Context (respond to
-            #pointer) or must be a FFI::Pointer, but #{ctx.class.name} given.
+            #pointer) or must be a FFI::Pointer, but #{ctx.inspect} given.
         ERR
       end
 
@@ -59,6 +63,12 @@ module RbZMQ
       @message_class = opts[:receiver_class]
     rescue ZMQ::ZeroMQError => err
       raise ZMQError.new err
+    end
+
+    # Return ZMQ socket pointer. Required interface for ZMQ::Poller.
+    #
+    def socket
+      @zmq_socket.socket
     end
 
     # Bind this socket to given address.
@@ -71,10 +81,11 @@ module RbZMQ
     #
     # @raise [ZMQError] On error.
     #
-    # @return [Boolean] True.
+    # @return [RbZMQ::Socket] Self.
     #
     def bind(address)
       ZMQError.error! zmq_socket.bind address
+      self
     end
 
     # Connect to given address.
@@ -90,10 +101,11 @@ module RbZMQ
     #
     # @raise [ZMQError] On error.
     #
-    # @return [Boolean] True.
+    # @return [RbZQM::Socket] Self.
     #
     def connect(address)
       ZMQError.error! zmq_socket.connect address
+      self
     end
 
     # Closes the socket. Any unprocessed messages in queue are sent or dropped
@@ -124,6 +136,7 @@ module RbZMQ
     #
     def close!
       ZMQError.error! zmq_socket.close
+      true
     end
 
     # Queues the message for transmission.
@@ -163,9 +176,12 @@ module RbZMQ
     # @return [Boolean] True.
     #
     def send_msg(message, flags = 0, opts = {})
-      opts, flags = flags, 0 if Hash === flags
+      opts, flags = flags, 0 if flags.is_a?(Hash)
 
-      ZMQError.error! zmq_socket.sendmsg message, convert_flags(opts, flags, [:more, :block])
+      rc = zmq_socket.sendmsg message,
+                              convert_flags(opts, flags, [:more, :block])
+      ZMQError.error! rc
+      true
     ensure
       message.close if opts.fetch(:close, false)
     end
@@ -209,10 +225,10 @@ module RbZMQ
     # @return [Boolean] True.
     #
     def send_msgs(messages, flags = 0, opts = {})
-      opts, flags = flags, 0 if Hash === flags
+      opts, flags = flags, 0 if flags.is_a?(Hash)
       flags       = convert_flags opts, flags
 
-      messages[0..-2].each { |m| send_msg m, flags | ZMQ::SNDMORE }
+      messages[0..-2].each{|m| send_msg(m, flags | ZMQ::SNDMORE) }
       send_msg messages.last, flags
 
       true
@@ -238,7 +254,7 @@ module RbZMQ
     # @return [Boolean] True.
     #
     def send_string(string, flags = 0, opts = {})
-      send_msg ZMQ::Message.new(string), flags, opts.merge(:close => true)
+      send_msg ZMQ::Message.new(string), flags, opts.merge(close: true)
     end
 
     # Send a sequence of strings as a multipart message out of the parts
@@ -258,9 +274,9 @@ module RbZMQ
     # @return [Boolean] True.
     #
     def send_strings(strings, flags = 0, opts = {})
-      send_msgs strings.map { |str| ZMQ::Message.new str },
+      send_msgs strings.map{|str| ZMQ::Message.new str },
                 flags,
-                opts.merge(:close => true)
+                opts.merge(close: true)
     end
 
     # Dequeues a message from the underlying queue. By default, this is a
@@ -271,14 +287,15 @@ module RbZMQ
     #
     # @param flags [Integer] Can be ZMQ::DONTWAIT.
     #
-    # @params opts [Hash] Options.
+    # @param opts [Hash] Options.
     #
     # @option opts [Boolean] :block If false operation will be non-blocking.
     #   Defaults to true.
     #
     # @option opts [Integer] :timeout Raise a EAGAIN error if nothing was
-    #   received within given amount of milliseconds. Defaults to 1000.
-    #   The values :blocking, :infinity or -1 will wait forever.
+    #   received within given amount of milliseconds. Defaults
+    #   to {DEFAULT_TIMEOUT}. The values :blocking, :infinity or -1 will
+    #   wait forever.
     #
     # @raise [ZMQError] Raise error under two conditions.
     #   1. The message could not be dequeued
@@ -290,11 +307,12 @@ module RbZMQ
     # @return [ZMQ::Message] Return an object of
     #
     def recv_msg(flags = 0, opts = {})
-      opts, flags = flags, 0 if Hash === flags
+      opts, flags = flags, 0 if flags.is_a?(Hash)
 
       with_recv_timeout(opts) do
-        ZMQError.error! zmq_socket.recvmsg (message = create_message),
-                                           convert_flags(opts, flags, [:block])
+        rc = zmq_socket.recvmsg((message = create_message),
+                                convert_flags(opts, flags, [:block]))
+        ZMQError.error! rc
         message
       end
     end
@@ -316,22 +334,29 @@ module RbZMQ
     # @return [String] Received string.
     #
     def recv_string(flags = 0, opts = {})
-      opts, flags = flags, 0 if Hash === flags
+      opts, flags = flags, 0 if flags.is_a?(Hash)
 
       with_recv_timeout(opts) do
-        ZMQError.error! zmq_socket.recv_string (str = ''),
-                                               convert_flags(opts, flags, [:block])
+        rc = zmq_socket.recv_string((str = ''),
+                                    convert_flags(opts, flags, [:block]))
+        ZMQError.error! rc
         str
       end
     end
 
     private
+
     # Convert option hash to ZMQ flag list
     # * :block (! DONTWAIT) defaults to true
     # * :more (SNDMORE) defaults to false
     def convert_flags(opts, flags = 0, allowed = [:block, :more])
-      flags = flags | ZMQ::DONTWAIT if !opts.fetch(:block, true) && allowed.include?(:block)
-      flags = flags | ZMQ::SNDMORE  if opts.fetch(:more, false)  && allowed.include?(:more)
+      if !opts.fetch(:block, true) && allowed.include?(:block)
+        flags |= ZMQ::DONTWAIT
+      end
+      if opts.fetch(:more, false)  && allowed.include?(:more)
+        flags |= ZMQ::SNDMORE
+      end
+
       flags
     end
 
@@ -342,7 +367,7 @@ module RbZMQ
 
     def poll
       @poll ||= ZMQ::Poller.new.tap do |poll|
-        poll.register @zmq_socket
+        poll.register @zmq_socket, ZMQ::POLLIN
       end
     end
 
@@ -350,10 +375,12 @@ module RbZMQ
     def with_recv_timeout(opts)
       timeout = parse_timeout opts[:timeout]
 
-      if poll.poll(timeout) > 0
+      ZMQError.error! poll.poll timeout
+      if poll.readables.any?
         yield
       else
-        raise Errno::EAGAIN.new "ZMQ socket did not receive anything within #{timeout}ms."
+        raise Errno::EAGAIN.new "ZMQ socket did not receive anything " \
+                                "within #{timeout}ms."
       end
     end
 
@@ -362,7 +389,7 @@ module RbZMQ
         when :blocking, :infinity
           -1
         when nil
-          1000
+          DEFAULT_TIMEOUT
         else
           Integer(timeout)
       end

@@ -92,7 +92,7 @@ describe RbZMQ::Socket do
     it 'should successfully call #bind on ZMQ socket' do
       expect(socket.zmq_socket).to receive(:bind)
                                    .with('tcp://127.0.0.1:5555').and_return(0)
-      expect(subject).to eq true
+      expect(subject).to eq socket
     end
 
     it 'should raise error on failure' do
@@ -107,7 +107,7 @@ describe RbZMQ::Socket do
     it 'should successfully call #connect on ZMQ socket' do
       expect(socket.zmq_socket).to receive(:connect)
                                    .with('tcp://127.0.0.1:5555').and_return(0)
-      expect(subject).to eq true
+      expect(subject).to eq socket
     end
 
     it 'should raise error on failure' do
@@ -117,7 +117,7 @@ describe RbZMQ::Socket do
   end
 
   describe '#send_msg' do
-    let(:msg)  { double 'msg' }
+    let(:msg) { double 'msg' }
     let(:args) { [msg, 42] }
     subject { socket.send_msg *args }
 
@@ -133,7 +133,7 @@ describe RbZMQ::Socket do
     end
 
     context 'with :block option' do
-      let(:args) { [msg, {:block => false}]}
+      let(:args) { [msg, {:block => false}] }
 
       it 'should set ZMQ::DONTWAIT flag' do
         expect(socket.zmq_socket).to receive(:sendmsg)
@@ -143,7 +143,7 @@ describe RbZMQ::Socket do
     end
 
     context 'with :more option' do
-      let(:args) { [msg, {:more => true}]}
+      let(:args) { [msg, {:more => true}] }
 
       it 'should set ZMQ::SNDMORE flag' do
         expect(socket.zmq_socket).to receive(:sendmsg)
@@ -153,7 +153,7 @@ describe RbZMQ::Socket do
     end
 
     context 'with :close option' do
-      let(:args) { [msg, {:close => true}]}
+      let(:args) { [msg, {:close => true}] }
 
       it 'should close message after send' do
         expect(socket.zmq_socket).to receive(:sendmsg)
@@ -240,34 +240,6 @@ describe RbZMQ::Socket do
 
     it 'should raise error on failure' do
       expect(socket.zmq_socket).to receive(:sendmsg).and_return(-1)
-      expect { subject }.to raise_error RbZMQ::ZMQError
-    end
-  end
-
-  describe '#recv_msg' do
-    subject { socket.recv_msg }
-
-    it 'should call #recvmsg on ZMQ socket' do
-      expect(socket.zmq_socket).to receive(:recvmsg).ordered.with(kind_of(ZMQ::Message), 0).and_return(0)
-      expect(subject).to be_a ZMQ::Message
-    end
-
-    it 'should raise error on failure' do
-      expect(socket.zmq_socket).to receive(:recvmsg).and_return(-1)
-      expect { subject }.to raise_error RbZMQ::ZMQError
-    end
-  end
-
-  describe '#recv_string' do
-    subject { socket.recv_string }
-
-    it 'should call #recvmsg on ZMQ socket' do
-      expect(socket.zmq_socket).to receive(:recvmsg){|msg, flags| msg.copy_in_string 'msg string'}.and_return(0)
-      expect(subject).to eq 'msg string'
-    end
-
-    it 'should raise error on failure' do
-      expect(socket.zmq_socket).to receive(:recvmsg).and_return(-1)
       expect { subject }.to raise_error RbZMQ::ZMQError
     end
   end

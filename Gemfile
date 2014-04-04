@@ -7,7 +7,7 @@ gem 'rake'
 
 group :development do
   gem 'yard'
-  gem 'redcarpet'
+  gem 'redcarpet', platform: :ruby
 end
 
 group :test do
