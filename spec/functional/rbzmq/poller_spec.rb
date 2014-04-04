@@ -57,10 +57,10 @@ describe RbZMQ::Poller do
       it 'should interrupt on event' do
         Thread.new do
           sleep 0.1
-          sender.send_string 'MSG'
+          sender.send 'MSG'
         end
         poller.poll(1_000)
-        expect(receiver.recv_string).to eq 'MSG'
+        expect(receiver.recv.to_s).to eq 'MSG'
         expect(end_time).to be < (start_time + 1.0)
       end
     end

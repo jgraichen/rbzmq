@@ -1,10 +1,12 @@
 require 'spec_helper'
 
 describe RbZMQ::Socket do
-  let!(:server) { described_class.new(ZMQ::PULL).tap { |s| s.bind 'inproc://test' } }
+  let!(:server) do
+    described_class.new(ZMQ::PULL).tap{|s| s.bind 'inproc://test' }
+  end
   after { server.close! }
 
-  let!(:socket) { described_class.new ZMQ::PUSH }
+  let!(:socket) { described_class.new(ZMQ::PUSH) }
   after { socket.close! }
 
   describe 'recv' do
@@ -15,12 +17,12 @@ describe RbZMQ::Socket do
 
       it 'should poll messages' do
         Thread.new do
-          sleep 0.5
-          socket.send_string 'TEST'
+          sleep 0.2
+          socket.send 'TEST'
         end
 
         start = Time.now
-        str   = server.recv_string timeout: 1000
+        str   = server.recv(timeout: 1000).to_s
 
         expect(Time.now - start).to be < 1
         expect(str).to eq 'TEST'
@@ -29,7 +31,7 @@ describe RbZMQ::Socket do
       it 'should raise error when timeout is reached' do
         start = Time.now
 
-        expect{ server.recv_msg timeout: 1000 }.to raise_error Errno::EAGAIN
+        expect{ server.recv(timeout: 1000).to_s }.to raise_error Errno::EAGAIN
 
         expect(Time.now - start).to be_within(0.1).of(1)
       end

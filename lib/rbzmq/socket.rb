@@ -20,12 +20,6 @@ module RbZMQ
     #
     attr_reader :zmq_socket
 
-    # @!visibility private
-    #
-    # Message class.
-    #
-    attr_reader :message_class
-
     # Allocates a socket of given type for sending and receiving data.
     #
     # @param type [Integer] ZMQ socket type, on if ZMQ::REQ, ZMQ::REP,
@@ -34,10 +28,6 @@ module RbZMQ
     #
     # @param opts [Hash] Option hash. :ctx will be removed, all other
     #   options will be passed to ZMQ::Socket.new.
-    #
-    # @option opts [Class] :receiver_class By default ZMQ::ManagedMessage
-    #   is used for automatic memory management. For manual memory management
-    #   override with ZMQ::Message.
     #
     # @option opts [Context] :ctx ZMQ context used to initialize socket.
     #   By default {Context.global} is used. Must be {RbZMQ::Context},
@@ -48,8 +38,6 @@ module RbZMQ
     # @return [Socket] Created socket object.
     #
     def initialize(type, opts = {})
-      opts = {receiver_class: ZMQ::ManagedMessage}.merge opts
-
       ctx = opts.fetch(:ctx) { RbZMQ::Context.global }
       ctx = ctx.pointer if ctx.respond_to? :pointer
 
@@ -61,7 +49,6 @@ module RbZMQ
 
       @zmq_ctx       = ctx
       @zmq_socket    = ZMQ::Socket.new ctx, type
-      @message_class = opts[:receiver_class]
     rescue ZMQ::ZeroMQError => err
       raise ZMQError.new err
     end
@@ -140,151 +127,62 @@ module RbZMQ
       true
     end
 
-    # Queues the message for transmission.
+    # Queues one or more messages for transmission.
     #
-    # @example
+    # @example Send single message or string
     #   begin
-    #     socket.send_msg message
+    #     message = RbZMQ::Message.new
+    #     socket.send message
     #   rescue RbZMQ::ZMQError => err
     #     puts 'Send failed.'
     #   end
     #
-    # @param message [ZMQ::Message] Message to send. Message is
-    #   assumed to conform to the same public API as ZMQ::Message.
+    # @example Send multiple messages
+    #    socket.send ["A", "B", "C 2"]
+    #
+    # @param message [RbZMQ::Message, String, #each] A {RbZMQ::Message} or
+    #   string message to send, or a list of messages responding to {#each}.
     #
     # @param flags [Integer] May contains of the following flags:
     #   * 0 (default) - blocking operation
     #   * ZMQ::DONTWAIT - non-blocking operation
-    #   * ZMQ::SNDMORE - this message is part of a multi-part message
+    #   * ZMQ::SNDMORE - this message or all messages
+    #     are part of a multi-part message
     #
     # @param opts [Hash] Options.
     #
     # @option opts [Boolean] :block If method call should block. Will set
     #   ZMQ::DONTWAIT flag if false. Defaults to true.
     #
-    # @option opts [Boolean] :more If message is part of a multipart message.
-    #   Set ZMQ::SNDMORE flag if true. Defaults to false.
-    #
-    # @option opts [Boolean] :close If given message should be closed after
-    #   sending. If true message will also be closed on error. Defaults to
-    #   false.
+    # @option opts [Boolean] :more If this message or all messages
+    #   are part of a multi-part message
     #
     # @raise [ZMQError] Raises an error under two conditions:
-    #   1. The message could not be enqueued
+    #   1. The message(s) could not be enqueued
     #   2. When flags is set with ZMQ::DONTWAIT and the socket
     #      returned EAGAIN.
     #
-    # @return [Boolean] True.
+    # @return [RbZMQ::Socket] Self.
     #
-    def send_msg(message, flags = 0, opts = {})
+    def send(messages, flags = 0, opts = {})
       opts, flags = flags, 0 if flags.is_a?(Hash)
+      flags       = convert_flags(opts, flags)
 
-      rc = zmq_socket.sendmsg message,
-                              convert_flags(opts, flags, [:more, :block])
-      ZMQError.error! rc
-      true
-    ensure
-      message.close if opts.fetch(:close, false)
+      if messages.respond_to?(:each)
+        send_multiple(messages, flags)
+      else
+        send_single(messages, flags)
+      end
+
+      self
     end
 
-    # Queues given messages for transmission.
+    # Dequeues a message from the underlying queue.
+    #
+    # By default, this is a blocking operation.
     #
     # @example
-    #   begin
-    #     socket.send_msgs message, another_message
-    #   rescue RbZMQ::ZMQError => err
-    #     puts 'Send failed.'
-    #   end
-    #
-    # @param messages [Array<ZMQ::Message>] Messages to send. Each message is
-    #   assumed to conform to the same public API as ZMQ::Message.
-    #
-    # @param flags [Integer] May contains of the following flags:
-    #   * 0 (default) - blocking operation
-    #   * ZMQ::DONTWAIT - non-blocking operation
-    #   * ZMQ::SNDMORE - this message is part of a multi-part message
-    #   If SNDMORE is set or :more option is given the last message will also
-    #   be send with SNDMORE.
-    #
-    # @param opts [Hash] Options.
-    #
-    # @option opts [Boolean] :block If method call should block. Will set
-    #   ZMQ::DONTWAIT flag if false. Defaults to true.
-    #
-    # @option opts [Boolean] :more If true last message will also be send with
-    #   ZMQ::SNDMORE. Defaults to false.
-    #
-    # @option opts [Boolean] :close If given messages should be closed after
-    #   sending. If true messages will also be closed on error. Defaults to
-    #   false.
-    #
-    # @raise [ZMQError] Raises an error under two conditions:
-    #   1. A message could not be enqueued
-    #   2. When flags is set with ZMQ::DONTWAIT and the socket
-    #      returned EAGAIN.
-    #
-    # @return [Boolean] True.
-    #
-    def send_msgs(messages, flags = 0, opts = {})
-      opts, flags = flags, 0 if flags.is_a?(Hash)
-      flags       = convert_flags opts, flags
-
-      messages[0..-2].each{|m| send_msg(m, flags | ZMQ::SNDMORE) }
-      send_msg messages.last, flags
-
-      true
-    ensure
-      messages.each(&:close) if opts.fetch(:close, false)
-    end
-
-    # Helper method to make a new Message instance out of the string passed
-    # in for transmission.
-    #
-    # @example
-    #   socket.send_string "Hello World!"
-    #
-    # @param string [String] String to send. Will be used to create
-    #   a ZMQ::Message.
-    #
-    # @param flags [Integer] See {#send_msg} for allowed flags.
-    #
-    # @param opts [Hash] Options. See {#send_msg} for allowed options.
-    #
-    # @raise [ZMQError] See {#send_msg} for raised error.
-    #
-    # @return [Boolean] True.
-    #
-    def send_string(string, flags = 0, opts = {})
-      send_msg ZMQ::Message.new(string), flags, opts.merge(close: true)
-    end
-
-    # Send a sequence of strings as a multipart message out of the parts
-    # passed in for transmission.
-    #
-    # @example
-    #   socket.send_strings ["Hello", "World!"]
-    #
-    # @param strings [Array<String>] Strings to send as multipart message.
-    #
-    # @param flags [Integer] See {#send_msgs} for allowed flags.
-    #
-    # @param opts [Hash] Options. See {#send_msgs} for allowed options.
-    #
-    # @raise [ZMQError] See {#send_msgs} for raised errors.
-    #
-    # @return [Boolean] True.
-    #
-    def send_strings(strings, flags = 0, opts = {})
-      send_msgs strings.map{|str| ZMQ::Message.new str },
-                flags,
-                opts.merge(close: true)
-    end
-
-    # Dequeues a message from the underlying queue. By default, this is a
-    # blocking operation.
-    #
-    # @example
-    #   message = socket.recv_msg
+    #   message = socket.recv
     #
     # @param flags [Integer] Can be ZMQ::DONTWAIT.
     #
@@ -295,8 +193,8 @@ module RbZMQ
     #
     # @option opts [Integer] :timeout Raise a EAGAIN error if nothing was
     #   received within given amount of milliseconds. Defaults
-    #   to {DEFAULT_TIMEOUT}. The values :blocking, :infinity or -1 will
-    #   wait forever.
+    #   to {DEFAULT_TIMEOUT}. The values `:blocking`, `:infinity`
+    #   or `-1` will wait forever.
     #
     # @raise [ZMQError] Raise error under two conditions.
     #   1. The message could not be dequeued
@@ -305,47 +203,35 @@ module RbZMQ
     # @raise [Errno::EAGAIN] When timeout was reached without receiving
     #   a message.
     #
-    # @return [ZMQ::Message] Return an object of
+    # @return [RbZMQ::Message] Received message.
     #
-    def recv_msg(flags = 0, opts = {})
+    def recv(flags = 0, opts = {})
       opts, flags = flags, 0 if flags.is_a?(Hash)
 
       with_recv_timeout(opts) do
-        rc = zmq_socket.recvmsg((message = create_message),
+        rc = zmq_socket.recvmsg((message = ZMQ::Message.new),
                                 convert_flags(opts, flags, [:block]))
         ZMQError.error! rc
-        message
-      end
-    end
-
-    # Helper method to make a new #Message instance and convert its payload
-    # to a string.
-    #
-    # @example
-    #   str = socket.recv_string
-    #
-    # @param flags [Integer] May be ZMQ::DONTWAIT.
-    #
-    # @param opts [Hash] Options.
-    #
-    # @raise [ZMQError] Raises error under two conditions:
-    #   1. The message could not be dequeued
-    #   2. When non-blocking and the socket returned EAGAIN.
-    #
-    # @return [String] Received string.
-    #
-    def recv_string(flags = 0, opts = {})
-      opts, flags = flags, 0 if flags.is_a?(Hash)
-
-      with_recv_timeout(opts) do
-        rc = zmq_socket.recv_string((str = ''),
-                                    convert_flags(opts, flags, [:block]))
-        ZMQError.error! rc
-        str
+        RbZMQ::Message.new(message)
       end
     end
 
     private
+
+    def send_multiple(messages, flags)
+      flgs = flags | ZMQ::SNDMORE
+      last = messages.to_enum(:each).reduce(nil) do |memo, msg|
+        send_single(memo, flgs) if memo
+        RbZMQ::Message.new(msg)
+      end
+
+      send_single(last, flags) if last
+    end
+
+    def send_single(message, flags)
+      zmqmsg = RbZMQ::Message.new(message).to_zmq
+      ZMQError.error! zmq_socket.sendmsg(zmqmsg, flags)
+    end
 
     # Convert option hash to ZMQ flag list
     # * :block (! DONTWAIT) defaults to true
@@ -359,11 +245,6 @@ module RbZMQ
       end
 
       flags
-    end
-
-    # Create new empty message
-    def create_message
-      message_class.new
     end
 
     def poll
