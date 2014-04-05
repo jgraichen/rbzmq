@@ -5,8 +5,10 @@ module RbZMQ
     PATCH = 0
     STAGE = nil
 
-    STRING = [MAJOR, MINOR, PATCH, STAGE].reject(&:nil?).join('.')
+    STRING = [MAJOR, MINOR, PATCH, STAGE].reject(&:nil?).join('.').freeze
 
-    def self.to_s; STRING end
+    def self.to_s
+      STRING
+    end
   end
 end

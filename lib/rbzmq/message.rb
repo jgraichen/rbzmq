@@ -3,7 +3,7 @@ module RbZMQ
   # = RbZMQ::Message
   #
   class Message
-
+    #
     attr_reader :data
 
     def initialize(str = '')
@@ -24,7 +24,7 @@ module RbZMQ
     end
 
     class << self
-
+      #
       # Create new {RbZMQ::Message}.
       #
       # If first argument is a {RbZMQ::Message} object it will
