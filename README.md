@@ -1,12 +1,12 @@
 # RbZMQ
 
-TODO: Write a gem description
+An opinionated ruby library wrapping [ffi-rzmq](https://github.com/chuckremes/ffi-rzmq) for more rubish flair.
 
 ## Installation
 
 Add this line to your application's Gemfile:
 
-    gem 'rbzmq'
+    gem 'rbzmq', '~> 0.1'
 
 And then execute:
 
@@ -18,7 +18,7 @@ Or install it yourself as:
 
 ## Usage
 
-You can use {RbZMQ::Socket}s just like in the Guide but without the need to handle a context. A global context will be used automagically.
+You can use {RbZMQ::Socket}s just like in the [zguide](http://zguide.zeromq.org/) but without the need to handle a context. A global context will be used automagically.
 
 ```ruby
 require 'rbzmq'
