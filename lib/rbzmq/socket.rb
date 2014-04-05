@@ -127,6 +127,16 @@ module RbZMQ
       true
     end
 
+    # Set a ZMQ socket object.
+    #
+    # @return [Boolean] True if success, false otherwise.
+    #
+    # @see zmq_setsockopt
+    #
+    def setsockopt(opt, val)
+      ZMQError.ok? zmq_socket.setsockopt(opt, val)
+    end
+
     # Queues one or more messages for transmission.
     #
     # @example Send single message or string

@@ -237,4 +237,19 @@ describe RbZMQ::Socket do
       end
     end
   end
+
+  describe '#setsockopt' do
+    subject { socket.setsockopt(ZMQ::SUBSCRIBE, 'ABC') }
+
+    it 'should call #setsockopt on ZMQ socket' do
+      expect(socket.zmq_socket).to receive(:setsockopt)
+                                   .with(ZMQ::SUBSCRIBE, 'ABC').and_return(0)
+      expect(subject).to eq true
+    end
+
+    it 'should return false on failure' do
+      expect(socket.zmq_socket).to receive(:setsockopt).and_return(-1)
+      expect(subject).to eq false
+    end
+  end
 end
