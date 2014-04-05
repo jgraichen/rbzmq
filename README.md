@@ -2,6 +2,8 @@
 
 An opinionated ruby library wrapping [ffi-rzmq](https://github.com/chuckremes/ffi-rzmq) for more rubish flair.
 
+*Library is still pre-release `0.x`. Everything may change anytime.*
+
 ## Installation
 
 Add this line to your application's Gemfile:
@@ -18,7 +20,7 @@ Or install it yourself as:
 
 ## Usage
 
-You can use {RbZMQ::Socket}s just like in the [zguide](http://zguide.zeromq.org/) but without the need to handle a context. A global context will be used automagically.
+You can use RbZMQ's sockets just like in the [zguide](http://zguide.zeromq.org/) but without the need to handle a context. A global context will be used automagically.
 
 ```ruby
 require 'rbzmq'
@@ -38,6 +40,16 @@ p reader.recv.to_s
 writer.close
 reader.close
 ```
+
+See `examples/` for a growing number of translated examples from the zguide.
+
+## TODO
+
+* RbZMQ::Reactor
+* Pimp RbZMQ::Message
+* Socket option accessors
+* Class documentation w/ examples
+* Translate zguide examples (and try to use them for auto testing)
 
 ## Contributing
 
