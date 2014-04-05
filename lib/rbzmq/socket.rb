@@ -140,8 +140,8 @@ module RbZMQ
     # @example Send multiple messages
     #    socket.send ["A", "B", "C 2"]
     #
-    # @param message [RbZMQ::Message, String, #each] A {RbZMQ::Message} or
-    #   string message to send, or a list of messages responding to {#each}.
+    # @param messages [RbZMQ::Message, String, #each] A {RbZMQ::Message} or
+    #   string message to send, or a list of messages responding to `#each`.
     #
     # @param flags [Integer] May contains of the following flags:
     #   * 0 (default) - blocking operation
