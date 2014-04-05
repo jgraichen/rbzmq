@@ -89,7 +89,7 @@ module RbZMQ
     #
     # @raise [ZMQError] On error.
     #
-    # @return [RbZQM::Socket] Self.
+    # @return [RbZMQ::Socket] Self.
     #
     def connect(address)
       ZMQError.error! zmq_socket.connect address
@@ -248,7 +248,7 @@ module RbZMQ
     end
 
     def poll
-      @poll ||= ZMQ::Poller.new.tap do |poll|
+      @poll ||= RbZMQ::Poller.new.tap do |poll|
         poll.register @zmq_socket, ZMQ::POLLIN
       end
     end
@@ -257,10 +257,7 @@ module RbZMQ
     def with_recv_timeout(opts)
       timeout = parse_timeout opts[:timeout]
 
-      ZMQError.error! poll.poll timeout
-      if poll.readables.any?
-        yield
-      else
+      unless poll.poll(timeout){ yield }
         raise Errno::EAGAIN.new "ZMQ socket did not receive anything " \
                                 "within #{timeout}ms."
       end
