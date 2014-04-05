@@ -257,7 +257,7 @@ module RbZMQ
     def with_recv_timeout(opts)
       timeout = parse_timeout opts[:timeout]
 
-      unless poll.poll(timeout){ yield }
+      unless poll.poll(timeout){ return yield }
         raise Errno::EAGAIN.new "ZMQ socket did not receive anything " \
                                 "within #{timeout}ms."
       end
