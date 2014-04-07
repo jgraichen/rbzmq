@@ -6,3 +6,6 @@ rvm:
 - 1.9.3
 - jruby
 - rbx
+before_install:
+- sudo apt-get update
+- sudo apt-get install libzmq3
