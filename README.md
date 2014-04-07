@@ -57,6 +57,7 @@ See `examples/` for a growing number of translated examples from the zguide.
 * Socket option accessors
 * Class documentation w/ examples
 * Translate zguide examples (and try to use them for auto testing)
+* Integration options into EventMachine (plus Fibers) / Celluloid (if possible)
 
 ## Contributing
 
