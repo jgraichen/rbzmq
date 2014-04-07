@@ -1,5 +1,12 @@
 # RbZMQ
 
+[![Gem Version](https://badge.fury.io/rb/rbzmq.svg)](http://badge.fury.io/rb/rbzmq)
+[![Build Status](http://img.shields.io/travis/jgraichen/rbzmq/master.svg)](https://travis-ci.org/jgraichen/rbzmq)
+[![Coverage Status](http://img.shields.io/coveralls/jgraichen/rbzmq/master.svg)](https://coveralls.io/r/jgraichen/rbzmq)
+[![Code Climate](http://img.shields.io/codeclimate/github/jgraichen/rbzmq.svg)](https://codeclimate.com/github/jgraichen/rbzmq)
+[![Dependency Status](http://img.shields.io/gemnasium/jgraichen/rbzmq.svg)](https://gemnasium.com/jgraichen/rbzmq)
+[![RubyDoc Documentation](http://img.shields.io/badge/rubydoc-here-blue.svg)](http://rubydoc.info/github/jgraichen/rbzmq/master/frames)
+
 An opinionated ruby library wrapping [ffi-rzmq](https://github.com/chuckremes/ffi-rzmq) for more rubish flair.
 
 *Library is still pre-release `0.x`. Everything may change anytime.*
