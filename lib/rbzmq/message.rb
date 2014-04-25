@@ -9,9 +9,11 @@ module RbZMQ
     def initialize(str = '')
       if str.is_a?(ZMQ::Message)
         @data = str.copy_out_string
+        @more = str.more?
         str.close
       else
         @data = str.to_s
+        @more = false
       end
     end
 
@@ -22,6 +24,11 @@ module RbZMQ
     def to_zmq
       ZMQ::Message.new(data)
     end
+
+    def multipart?
+      @more
+    end
+    alias_method :more?, :multipart?
 
     class << self
       #

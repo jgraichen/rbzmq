@@ -36,5 +36,21 @@ describe RbZMQ::Socket do
         expect(Time.now - start).to be_within(0.1).of(1)
       end
     end
+
+    describe 'multiple' do
+      before do
+        socket.connect 'inproc://test'
+      end
+
+      it 'should receive multiple parts' do
+        socket.send %w(TEST MORE)
+
+        msg = server.recv(timeout: 100)
+        expect(msg).to be_multipart
+        expect(msg.data).to eq 'TEST'
+        msg = server.recv(timeout: 100)
+        expect(msg.data).to eq 'MORE'
+      end
+    end
   end
 end
