@@ -43,13 +43,14 @@ describe RbZMQ::Socket do
       end
 
       it 'should receive multiple parts' do
-        socket.send %w(TEST MORE)
+        socket.send 'TEST', ZMQ::SNDMORE
+        socket.send 'MORE'
 
         msg = server.recv(timeout: 100)
-        expect(msg).to be_multipart
-        expect(msg.data).to eq 'TEST'
-        msg = server.recv(timeout: 100)
-        expect(msg.data).to eq 'MORE'
+        expect(msg).to be_more
+        expect(msg.to_s).to eq 'TEST'
+        expect{|cb| msg.each(&cb) }.to yield_control.twice
+        expect(msg.each.map(&:to_s)).to eq %w(TEST MORE)
       end
     end
   end

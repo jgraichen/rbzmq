@@ -219,10 +219,17 @@ module RbZMQ
       opts, flags = flags, 0 if flags.is_a?(Hash)
 
       with_recv_timeout(opts) do
-        rc = zmq_socket.recvmsg((message = ZMQ::Message.new),
-                                convert_flags(opts, flags, [:block]))
-        ZMQError.error! rc
-        RbZMQ::Message.new(message)
+        messages = []
+
+        loop do
+          rc = zmq_socket.recvmsg((message = ZMQ::Message.new),
+                                  convert_flags(opts, flags, [:block]))
+          ZMQError.error! rc
+          messages << message
+          break unless zmq_socket.more_parts?
+        end
+
+        RbZMQ::Message.from_zmq(messages)
       end
     end
 
