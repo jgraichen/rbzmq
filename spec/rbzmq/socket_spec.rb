@@ -1,11 +1,12 @@
 require 'spec_helper'
 
 describe RbZMQ::Socket do
-  let(:socket) { RbZMQ::Socket.new ZMQ::ROUTER }
+  let(:socket) { @socket = RbZMQ::Socket.new ZMQ::ROUTER }
+  around {|ex| ex.call && @socket && @socket.close }
 
   describe '#initialize' do
     let(:opts) { Hash.new }
-    let(:socket) { RbZMQ::Socket.new ZMQ::ROUTER, opts }
+    let(:socket) { @socket = RbZMQ::Socket.new ZMQ::ROUTER, opts }
 
     context 'opts: ctx' do
       let(:opts) { {ctx: ctx} }

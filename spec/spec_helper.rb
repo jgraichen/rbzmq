@@ -20,7 +20,7 @@ RSpec.configure do |config|
       Timeout.timeout(30) do
         example.call
       end
-    rescue
+    rescue Timeout::Error
       raise Timeout::Error.new 'Spec exceeded maximum execution time'
     end
   end
