@@ -20,12 +20,20 @@ RSpec.configure do |config|
   config.order = 'random'
 
   config.around do |example|
-    begin
-      Timeout.timeout(30) do
-        example.call
+    err = catch(:err) do
+      begin
+        Timeout.timeout(30) do
+          begin
+            example.call
+          rescue => e
+            throw :err, e
+          end
+        end
+      rescue Timeout::Error
+        throw :err, Timeout::Error.new('Spec exceeded maximum execution time')
       end
-    rescue Timeout::Error
-      raise Timeout::Error.new 'Spec exceeded maximum execution time'
     end
+
+    raise err if err.is_a?(Exception)
   end
 end
