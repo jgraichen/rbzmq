@@ -9,7 +9,6 @@ rvm:
 matrix:
   allow_failures:
     - rvm: jruby
-    - rvm: rbx
 before_install:
 - sudo apt-get update
 - sudo apt-get install libzmq3-dev libzmq3
